@@ -1,4 +1,4 @@
-package getIPrange
+package main
 
 import "net"
 

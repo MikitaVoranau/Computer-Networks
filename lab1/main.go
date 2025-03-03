@@ -2,15 +2,16 @@ package main
 
 import (
 	"fmt"
-	getIP "lab1/pkg/getIPrange"
 	"net"
 )
 
 func main() {
+
 	netInterfaces, err := net.Interfaces()
 	if err != nil {
 		panic(err)
 	}
+
 	for _, iFace := range netInterfaces {
 
 		if !isInterfaceCorrect(iFace) {
@@ -25,15 +26,7 @@ func main() {
 		}
 
 		getIPAdds(adds)
-
 	}
-}
-
-func isInterfaceCorrect(iface net.Interface) bool {
-	if (iface.Flags&net.FlagUp == 0) || iface.HardwareAddr == nil {
-		return false
-	}
-	return true
 }
 
 func getIPAdds(adds []net.Addr) {
@@ -45,8 +38,9 @@ func getIPAdds(adds []net.Addr) {
 		if ipNet.IP.To4() != nil {
 			fmt.Printf("IPv4-адрес: %s\n", ipNet)
 
-			startIP, endIP := getIP.CalculatesIPRange(ipNet)
+			startIP, endIP := CalculatesIPRange(ipNet)
 			fmt.Printf("Диапазон IPv4-адресов: %s - %s\n", startIP, endIP)
+			//SendPings(startIP)
 		}
 	}
 }
