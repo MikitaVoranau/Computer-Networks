@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/go-ping/ping"
 	"log"
 	"net"
@@ -9,43 +8,54 @@ import (
 	"time"
 )
 
-var wg sync.WaitGroup
+var (
+	wg      sync.WaitGroup
+	mutex   sync.Mutex
+	results = make(chan string)
+)
 
-var results = make(chan string)
-
-func SendPingstoIPs(startIP, endIP net.IP) {
-	go func() {
-		for result := range results {
-			fmt.Println(result)
-		}
-	}()
-
-	for ip := startIP; !ip.Equal(endIP); IncIP(ip) {
+func SendPingstoIPs(startIP, endIP net.IP, results chan<- string) {
+	for ip := startIP; !ip.Equal(endIP); IncourIP(ip) {
 		wg.Add(1)
-		pingIP(ip.String(), &wg, results)
+		go pingIP(ip.String(), &wg, results)
 	}
 
 	wg.Wait()
-
-	close(results)
 }
 
 func pingIP(ip string, wg *sync.WaitGroup, results chan<- string) {
 	defer wg.Done()
+
 	pinger, err := ping.NewPinger(ip)
 	if err != nil {
-		log.Fatalf("Ping IP : cannot send ping %w", err)
+		log.Printf("Ошибка при создании пингера для %s: %v\n", ip, err)
+		return
 	}
+
 	pinger.SetPrivileged(true)
 	pinger.Count = 1
-	pinger.Timeout = time.Second * 1
+	pinger.Timeout = time.Second * 5
+	pinger.Size = 600
+
 	err = pinger.Run()
 	if err != nil {
-		log.Fatalf("Ping IP : cannot finished ping, %w", err)
+		log.Printf("Ошибка при пинге %s: %v\n", ip, err)
+		return
 	}
+
 	stats := pinger.Statistics()
 	if stats.PacketsRecv > 0 {
+		mutex.Lock()
 		results <- ip
+		mutex.Unlock()
 	}
-	fmt.Println(stats)
+}
+
+func IncourIP(ip net.IP) {
+	for j := len(ip) - 1; j >= 0; j-- {
+		ip[j]++
+		if ip[j] > 0 {
+			break
+		}
+	}
 }
