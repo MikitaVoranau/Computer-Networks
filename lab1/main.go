@@ -2,45 +2,36 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 )
 
 func main() {
 
-	netInterfaces, err := net.Interfaces()
+	ourIface := getIface()
+
+	adds, err := ourIface.Addrs()
 	if err != nil {
-		panic(err)
+		log.Fatalf("не удалось получить адреса %w для сетевого интерфейса %s", err, ourIface.Name)
 	}
 
-	for _, iFace := range netInterfaces {
-
-		if !isInterfaceCorrect(iFace) {
-			continue
-		}
-
-		fmt.Println("Имя сетевого интерфейса - ", iFace.Name, "\nЕго MAC адрес - ", iFace.HardwareAddr)
-
-		adds, err := iFace.Addrs()
-		if err != nil {
-			_ = fmt.Errorf("не удалось получить адреса %w для сетевого интерфейса %s", err, iFace.Name)
-		}
-
-		getIPAdds(adds)
+	Ip4Adds := getIPAdds(adds)
+	if Ip4Adds == nil {
+		log.Fatalf("couldn't get an ip4 address from  your iface ")
 	}
+	
 }
 
-func getIPAdds(adds []net.Addr) {
-	for _, addr := range adds {
-		ipNet, ok := addr.(*net.IPNet)
+func getIPAdds(adds []net.Addr) *net.IPNet {
+	for _, address := range adds {
+		ipNet, ok := address.(*net.IPNet)
 		if !ok {
-			continue
+			log.Fatalf("getIPAdds : cannot type to net")
 		}
 		if ipNet.IP.To4() != nil {
 			fmt.Printf("IPv4-адрес: %s\n", ipNet)
-
-			startIP, endIP := CalculatesIPRange(ipNet)
-			fmt.Printf("Диапазон IPv4-адресов: %s - %s\n", startIP, endIP)
-			//SendPings(startIP)
+			return ipNet
 		}
 	}
+	return nil
 }

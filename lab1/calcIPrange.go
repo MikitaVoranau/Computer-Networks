@@ -12,6 +12,7 @@ func CalculatesIPRange(ipNet *net.IPNet) (net.IP, net.IP) {
 		networkIp[i] = startIP[i] & mask[i]
 
 	}
+
 	endIP := make(net.IP, len(startIP))
 
 	for i := range startIP {

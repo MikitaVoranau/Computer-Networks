@@ -23,7 +23,9 @@ func getIface() net.Interface {
 	if err != nil {
 		log.Fatalf("getIface : wrong choose %w", err)
 	}
-
+	if choose < 0 || choose > len(netInterfaces) {
+		log.Fatalf("no such interface")
+	}
 	return netInterfaces[choose-1]
 }
 
@@ -40,5 +42,5 @@ func findActiveIfaces(allIfaces []net.Interface) []net.Interface {
 		activeIFaces = append(activeIFaces, iface)
 	}
 
-	return allIfaces
+	return activeIFaces
 }
