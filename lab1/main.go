@@ -19,7 +19,10 @@ func main() {
 	if Ip4Adds == nil {
 		log.Fatalf("couldn't get an ip4 address from  your iface ")
 	}
-	
+
+	startIP, endIP := CalculatesIPRange(Ip4Adds)
+	SendPingstoIPs(startIP, endIP)
+
 }
 
 func getIPAdds(adds []net.Addr) *net.IPNet {

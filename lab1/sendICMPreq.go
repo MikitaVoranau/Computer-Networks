@@ -3,22 +3,49 @@ package main
 import (
 	"fmt"
 	"github.com/go-ping/ping"
+	"log"
 	"net"
+	"sync"
+	"time"
 )
 
-func SendPings(allIps []net.IP) []net.IP {
-	for _, value := range allIps {
-		pinger, err := ping.NewPinger(net.IP.String(value))
-		if err != nil {
-			panic(err)
+var wg sync.WaitGroup
+
+var results = make(chan string)
+
+func SendPingstoIPs(startIP, endIP net.IP) {
+	go func() {
+		for result := range results {
+			fmt.Println(result)
 		}
-		pinger.Count = 3
-		err = pinger.Run() // Blocks until finished.
-		if err != nil {
-			panic(err)
-		}
-		stats := pinger.Statistics()
-		fmt.Println(stats)
+	}()
+
+	for ip := startIP; !ip.Equal(endIP); IncIP(ip) {
+		wg.Add(1)
+		pingIP(ip.String(), &wg, results)
 	}
-	return allIps
+
+	wg.Wait()
+
+	close(results)
+}
+
+func pingIP(ip string, wg *sync.WaitGroup, results chan<- string) {
+	defer wg.Done()
+	pinger, err := ping.NewPinger(ip)
+	if err != nil {
+		log.Fatalf("Ping IP : cannot send ping %w", err)
+	}
+	pinger.SetPrivileged(true)
+	pinger.Count = 1
+	pinger.Timeout = time.Second * 1
+	err = pinger.Run()
+	if err != nil {
+		log.Fatalf("Ping IP : cannot finished ping, %w", err)
+	}
+	stats := pinger.Statistics()
+	if stats.PacketsRecv > 0 {
+		results <- ip
+	}
+	fmt.Println(stats)
 }
