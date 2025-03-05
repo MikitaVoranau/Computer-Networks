@@ -28,11 +28,8 @@ func main() {
 			fmt.Println("Доступное устройство:", ip)
 		}
 	}()
-
-	// Запускаем сканирование
 	SendPingstoIPs(startIP, endIP, results)
 
-	// Закрываем канал после завершения сканирования
 	close(results)
 
 }

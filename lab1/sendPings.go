@@ -8,24 +8,51 @@ import (
 	"time"
 )
 
+type Semaphore struct {
+	semaCh chan struct{}
+}
+
 var (
 	wg      sync.WaitGroup
 	mutex   sync.Mutex
 	results = make(chan string)
 )
 
+const maxGoroutines = 200
+
+func NewSemaphore(maxReq int) *Semaphore {
+	return &Semaphore{
+		semaCh: make(chan struct{}, maxReq),
+	}
+}
+
+func (s *Semaphore) Acquire() {
+	s.semaCh <- struct{}{}
+}
+
+func (s *Semaphore) Release() {
+	<-s.semaCh
+}
+
 func SendPingstoIPs(startIP, endIP net.IP, results chan<- string) {
+	sem := NewSemaphore(200)
+
 	for ip := startIP; !ip.Equal(endIP); IncourIP(ip) {
+
 		wg.Add(1)
-		go pingIP(ip.String(), &wg, results)
+		sem.Acquire() // Забираем слот
+
+		go func(ip string) {
+			defer wg.Done()
+			defer sem.Release() // Освобождаем слот
+			pingIP(ip, results)
+		}(ip.String())
 	}
 
 	wg.Wait()
 }
 
-func pingIP(ip string, wg *sync.WaitGroup, results chan<- string) {
-	defer wg.Done()
-
+func pingIP(ip string, results chan<- string) {
 	pinger, err := ping.NewPinger(ip)
 	if err != nil {
 		log.Printf("Ошибка при создании пингера для %s: %v\n", ip, err)
