@@ -21,7 +21,7 @@ func main() {
 	}
 
 	startIP, endIP := CalculatesIPRange(Ip4Adds)
-	results := make(chan string)
+	results := make(chan DeviceInfo)
 
 	go func() {
 		for ip := range results {

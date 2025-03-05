@@ -4,6 +4,8 @@ import (
 	"github.com/go-ping/ping"
 	"log"
 	"net"
+	"os/exec"
+	"strings"
 	"sync"
 	"time"
 )
@@ -12,10 +14,16 @@ type Semaphore struct {
 	semaCh chan struct{}
 }
 
+type DeviceInfo struct {
+	IP   string
+	MAC  string
+	Name string
+}
+
 var (
 	wg      sync.WaitGroup
 	mutex   sync.Mutex
-	results = make(chan string)
+	results = make(chan DeviceInfo) // Канал для передачи информации об устройстве
 )
 
 const maxGoroutines = 200
@@ -34,11 +42,10 @@ func (s *Semaphore) Release() {
 	<-s.semaCh
 }
 
-func SendPingstoIPs(startIP, endIP net.IP, results chan<- string) {
-	sem := NewSemaphore(200)
+func SendPingstoIPs(startIP, endIP net.IP, results chan<- DeviceInfo) {
+	sem := NewSemaphore(maxGoroutines)
 
-	for ip := startIP; !ip.Equal(endIP); IncourIP(ip) {
-
+	for ip := startIP; !ip.Equal(endIP); IncIP(ip, true) {
 		wg.Add(1)
 		sem.Acquire() // Забираем слот
 
@@ -52,7 +59,7 @@ func SendPingstoIPs(startIP, endIP net.IP, results chan<- string) {
 	wg.Wait()
 }
 
-func pingIP(ip string, results chan<- string) {
+func pingIP(ip string, results chan<- DeviceInfo) {
 	pinger, err := ping.NewPinger(ip)
 	if err != nil {
 		log.Printf("Ошибка при создании пингера для %s: %v\n", ip, err)
@@ -72,17 +79,55 @@ func pingIP(ip string, results chan<- string) {
 
 	stats := pinger.Statistics()
 	if stats.PacketsRecv > 0 {
-		mutex.Lock()
-		results <- ip
-		mutex.Unlock()
+		mac, name := getARPInfo(ip) // Получаем MAC-адрес и имя устройства
+		results <- DeviceInfo{IP: ip, MAC: mac, Name: name}
 	}
 }
 
-func IncourIP(ip net.IP) {
-	for j := len(ip) - 1; j >= 0; j-- {
-		ip[j]++
-		if ip[j] > 0 {
+func getARPInfo(ip string) (string, string) {
+	cmd := exec.Command("arp", "-a")
+	output, err := cmd.Output()
+	if err != nil {
+		log.Printf("Ошибка при выполнении команды arp -a: %v\n", err)
+		return "", ""
+	}
+
+	lines := strings.Split(string(output), "\n")
+	for _, line := range lines {
+		if strings.Contains(line, ip) {
+			parts := strings.Fields(line)
+			if len(parts) >= 3 {
+				mac := parts[1]
+				name := ""
+				if len(parts) >= 4 {
+					name = parts[3]
+				}
+				return mac, name
+			}
+		}
+	}
+
+	return "", ""
+}
+
+func IncIP(ip net.IP, inPlace bool) net.IP {
+	var targetIP net.IP
+	if inPlace {
+		targetIP = ip
+	} else {
+		targetIP = make(net.IP, len(ip))
+		copy(targetIP, ip)
+	}
+
+	for i := len(targetIP) - 1; i >= 0; i-- {
+		targetIP[i]++
+		if targetIP[i] != 0 {
 			break
 		}
 	}
+
+	if !inPlace {
+		return targetIP
+	}
+	return nil
 }
