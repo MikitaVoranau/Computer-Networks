@@ -7,14 +7,14 @@ import (
 )
 
 func main() {
+	hostIP, _ := getHostInfo()
 
 	ourIface := getIface()
-
 	adds, err := ourIface.Addrs()
 	if err != nil {
 		log.Fatalf("не удалось получить адреса %w для сетевого интерфейса %s", err, ourIface.Name)
 	}
-
+	fmt.Printf("Собственный компьютер - IP: %s, MAC: %s\n\n", hostIP, ourIface.HardwareAddr.String())
 	Ip4Adds := getIPAdds(adds)
 	if Ip4Adds == nil {
 		log.Fatalf("couldn't get an ip4 address from  your iface ")
@@ -28,7 +28,7 @@ func main() {
 			fmt.Println("Доступное устройство:", ip)
 		}
 	}()
-	SendPingstoIPs(startIP, endIP, results)
+	SendPingstoIPs(startIP, endIP, results, hostIP)
 
 	close(results)
 
@@ -41,7 +41,6 @@ func getIPAdds(adds []net.Addr) *net.IPNet {
 			log.Fatalf("getIPAdds : cannot type to net")
 		}
 		if ipNet.IP.To4() != nil {
-			fmt.Printf("IPv4-адрес: %s\n", ipNet)
 			return ipNet
 		}
 	}

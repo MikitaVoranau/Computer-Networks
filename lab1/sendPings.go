@@ -4,8 +4,6 @@ import (
 	"github.com/go-ping/ping"
 	"log"
 	"net"
-	"os/exec"
-	"strings"
 	"sync"
 	"time"
 )
@@ -15,9 +13,8 @@ type Semaphore struct {
 }
 
 type DeviceInfo struct {
-	IP   string
-	MAC  string
-	Name string
+	IP  string
+	MAC string
 }
 
 var (
@@ -26,7 +23,7 @@ var (
 	results = make(chan DeviceInfo) // Канал для передачи информации об устройстве
 )
 
-const maxGoroutines = 200
+const maxGoroutines = 1000
 
 func NewSemaphore(maxReq int) *Semaphore {
 	return &Semaphore{
@@ -42,10 +39,15 @@ func (s *Semaphore) Release() {
 	<-s.semaCh
 }
 
-func SendPingstoIPs(startIP, endIP net.IP, results chan<- DeviceInfo) {
+func SendPingstoIPs(startIP, endIP net.IP, results chan<- DeviceInfo, localIP string) {
 	sem := NewSemaphore(maxGoroutines)
 
 	for ip := startIP; !ip.Equal(endIP); IncIP(ip, true) {
+		ipStr := ip.String()
+		if ipStr == localIP {
+			continue // Пропускаем IP-адрес локального устройства
+		}
+
 		wg.Add(1)
 		sem.Acquire() // Забираем слот
 
@@ -79,35 +81,9 @@ func pingIP(ip string, results chan<- DeviceInfo) {
 
 	stats := pinger.Statistics()
 	if stats.PacketsRecv > 0 {
-		mac, name := getARPInfo(ip) // Получаем MAC-адрес и имя устройства
-		results <- DeviceInfo{IP: ip, MAC: mac, Name: name}
+		mac := GetARPInfo(ip) // Получаем MAC-адрес и имя устройства
+		results <- DeviceInfo{IP: ip, MAC: mac}
 	}
-}
-
-func getARPInfo(ip string) (string, string) {
-	cmd := exec.Command("arp", "-a")
-	output, err := cmd.Output()
-	if err != nil {
-		log.Printf("Ошибка при выполнении команды arp -a: %v\n", err)
-		return "", ""
-	}
-
-	lines := strings.Split(string(output), "\n")
-	for _, line := range lines {
-		if strings.Contains(line, ip) {
-			parts := strings.Fields(line)
-			if len(parts) >= 3 {
-				mac := parts[1]
-				name := ""
-				if len(parts) >= 4 {
-					name = parts[3]
-				}
-				return mac, name
-			}
-		}
-	}
-
-	return "", ""
 }
 
 func IncIP(ip net.IP, inPlace bool) net.IP {
