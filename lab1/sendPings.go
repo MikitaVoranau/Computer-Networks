@@ -45,15 +45,15 @@ func SendPingstoIPs(startIP, endIP net.IP, results chan<- DeviceInfo, localIP st
 	for ip := startIP; !ip.Equal(endIP); IncIP(ip, true) {
 		ipStr := ip.String()
 		if ipStr == localIP {
-			continue // Пропускаем IP-адрес локального устройства
+			continue
 		}
 
 		wg.Add(1)
-		sem.Acquire() // Забираем слот
+		sem.Acquire()
 
 		go func(ip string) {
 			defer wg.Done()
-			defer sem.Release() // Освобождаем слот
+			defer sem.Release()
 			pingIP(ip, results)
 		}(ip.String())
 	}

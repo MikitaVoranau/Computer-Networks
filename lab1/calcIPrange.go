@@ -21,13 +21,3 @@ func CalculatesIPRange(ipNet *net.IPNet) (net.IP, net.IP) {
 	}
 	return IncIP(networkIp, false), endIP
 }
-
-func GetIPRange(startIP, endIP *net.IP) []net.IP {
-	var ips []net.IP
-
-	for ip := *startIP; !ip.Equal(*endIP); ip = IncIP(ip, false) {
-		ips = append(ips, ip)
-	}
-	ips = append(ips, *endIP)
-	return ips
-}
