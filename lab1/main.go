@@ -25,7 +25,7 @@ func main() {
 
 	go func() {
 		for ip := range results {
-			fmt.Println("Доступное устройство:", ip)
+			fmt.Printf("Mac-адрес устройства: %17s  IP-адрес устройства: %16s \n", ip.MAC, ip.IP)
 		}
 	}()
 	SendPingstoIPs(startIP, endIP, results, hostIP)

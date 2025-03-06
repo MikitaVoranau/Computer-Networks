@@ -23,7 +23,7 @@ var (
 	results = make(chan DeviceInfo) // Канал для передачи информации об устройстве
 )
 
-const maxGoroutines = 1000
+const maxGoroutines = 200
 
 func NewSemaphore(maxReq int) *Semaphore {
 	return &Semaphore{
